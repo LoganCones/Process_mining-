@@ -1,0 +1,48 @@
+# Install and load necessary packages
+install.packages("bupaR")
+library(bupaR)
+
+# Create a mock dataset
+event_log <- data.frame(
+  case_id = c(1, 1, 1, 2, 2, 3, 3, 3),
+  activity_id = c("A", "B", "C", "A", "B", "A", "B", "C"),
+  timestamp = as.POSIXct(c(
+    "2023-01-01 08:00:00", "2023-01-01 09:00:00", "2023-01-01 10:00:00",
+    "2023-01-01 08:30:00", "2023-01-01 09:30:00",
+    "2023-01-01 08:45:00", "2023-01-01 09:45:00", "2023-01-01 10:45:00"
+  ))
+)
+
+log <- create_log(event_log)
+
+# Custom animate_process function with additional behavior
+custom_animate_process <- function(log, specified_activity, ...) {
+  # Identify cases that haven't reached the specified activity
+  cases_not_reached_activity <- log_cases(log)[!specified_activity %in% case_activities(log, activities = specified_activity)]
+
+  # For cases that haven't reached the specified activity, persist on the prior activity
+  for (case_id in cases_not_reached_activity) {
+    last_activity <- tail(case_activities(log, cases = case_id), 1)
+    animate_process(log, case = case_id, from = last_activity, to = last_activity, ...)
+  }
+
+  # For other cases, proceed with the regular animation logic
+  animate_process(log, exclude = cases_not_reached_activity, ...)
+}
+
+# Custom process_map function with additional behavior
+custom_process_map <- function(log, specified_activity, ...) {
+  # Create the process map
+  map <- process_map(log, ...)
+
+  # Your additional logic to customize the map based on specified_activity
+  # For simplicity, let's just add a red border around the specified_activity
+  map <- add_grob(map, grid::rectGrob(gp = gpar(col = "red", fill = NA)), node = specified_activity)
+
+  return(map)
+}
+
+# Example usage
+specified_activity <- "C"
+custom_process_map(log, specified_activity)
+custom_animate_process(log, specified_activity)
